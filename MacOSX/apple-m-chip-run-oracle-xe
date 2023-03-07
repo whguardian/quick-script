@@ -1,0 +1,76 @@
+#!/bin/bash -e
+
+VERSION=latest
+PASSWORD=sys
+
+usage() {
+cat << EOF
+
+Run Oracle database on Apple M chip.
+
+Parameters:
+    -p: oracle database password, default for 'sys'
+    -v: oracle-e version
+EOF
+}
+
+while getopts "hp:v:" optname; do
+    case "${optname}" in
+        "h")
+          usgae
+          exit 0
+          ;;
+        "p")
+          PASSWORD="${OPTARG}"
+          ;;
+        "v")
+          VERSION="${OPTARG}"
+          ;;
+    esac
+done
+
+CONTAINER_RUNTIME=$(which docker 2>/dev/null) ||
+{
+    echo "There is no docker in your PATH"
+    exit 1
+}
+
+arch=$(uname -m)
+if [ $arch = "arm64" ]
+then
+    echo "Run oracle database on Apple M chip."
+
+    COLIMA=$(which colima)
+    if [ -z $COLIMA ]
+    then
+        echo "No colima, try to install..."
+
+        brew_run=$(which brsew) && { ${brew_run} install colima; } ||
+        mac_port_run=$(which port) && { ${mac_port_run} install colima; } ||
+        nix_run=$(which nix-env) && { ${nix_run} -iA nixpkgs.colima; } ||
+        {
+          echo "Colima is available on Homebrew, MacPorts, and Nix."
+          echo "But now, can't found any of them."
+          exit 1
+        }
+    fi
+
+    colima start --arch x86_64 --memory 4
+fi
+
+if [ -z $PASSWORD ]
+then
+    PASSWORD=sys
+fi
+
+PORT=1521
+${CONTAINER_RUNTIME} run -d -p ${PORT}:1521 -e ORACLE_PASSWORD=${PASSWORD} gvenzl/oracle-xe:${VERSION}
+
+echo "Oracle-xe start with port ${PORT}"
+echo "Oracle password: ${PASSWORD}"
+
+# stop and delete colima instance
+# colima stop
+# colima delete
+# This is not a good idea delete colima instance, delete instance will delete
+# all context for colima, of course, include image in this instance.

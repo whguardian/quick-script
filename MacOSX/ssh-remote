@@ -1,0 +1,53 @@
+#!/bin/bash -e
+
+DEST=
+
+available_host() {
+    local _hosts=$1
+    host=$(grep -E '^Host ([^*]+)' $HOME/.ssh/config | sed 's/Host //')
+    hosts=$(echo $host | tr '\n' ' ')
+    if [[ "$_hosts" ]]; then
+        eval $_hosts="'$hosts'"
+    else
+        echo "$hosts"
+    fi
+}
+
+usage() {
+
+    available_host hosts
+
+cat << EOF
+
+Connect to remote server by ssh, all available remote host configure with $HOME/.ssh/config.
+
+    -d: select available host
+        Available host: use ssh-remote -l list all available hosts
+    -l: list all available hosts
+
+EOF
+}
+
+while getopts "hd:l" optname; do 
+   case "${optname}" in
+       "h")
+         usage
+         exit 0
+         ;;
+       "d")
+         DEST="${OPTARG}"    
+         ;;
+       "l")
+         echo $(available_host)
+         exit 0
+         ;;
+   esac
+done
+
+if [ -z $DEST ]
+then
+   echo 'There is no destination, see -h for help'
+   exit 1
+fi
+
+ssh $DEST
